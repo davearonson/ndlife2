@@ -1,0 +1,19 @@
+This is the Game of Life -- Conway's, not Milton-Bradley's -- in an arbitrary
+number of dimensions.  That is, you can make it the traditional 2D grid... or
+3D, or 7D, or whatever you wish.  Just be aware that it gets much slower each
+time you add a dimension.
+
+The main file, ndlife.rb, is the guts.  To actually use it, do something
+similar to ndlife_drive.rb.  And of course to test it, with rspec, use
+ndlife_spec.rb.
+
+This is a from-scratch rewrite of my previous version, which naively iterated
+over every possible cell in the world.  This version, however, uses sparse
+matrices.  Mainly, first it keeps a Set of the live cells.  While iterating
+over that, to see which ones survive to the next turn, it builds a list of the
+dead neighbors of live cells, since these are the only ones that could possibly
+come alive.  Then it iterates over those to see which ones do indeed come
+alive.
+
+This version also uses much more canonical Ruby, as I've learned a lot more
+since then!
