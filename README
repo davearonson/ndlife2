@@ -17,3 +17,5 @@ alive.
 
 This version also uses much more canonical Ruby, as I've learned a lot more
 since then!
+
+Future plans include making command line args.
