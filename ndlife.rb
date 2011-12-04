@@ -1,8 +1,8 @@
 #! /usr/bin/ruby -w
 
-module NDLife
+require 'set'
 
-  require 'set'
+module NDLife
 
   class World
 
@@ -14,12 +14,14 @@ module NDLife
 
     attr_reader :cells, :dimensions,
                 :max_nbrs_to_be_born, :min_nbrs_to_be_born,
-                :max_nbrs_to_survive, :min_nbrs_to_survive
+                :max_nbrs_to_survive, :min_nbrs_to_survive,
+                :neighbor_vectors
 
     def initialize args = { :dimensions => [4,4,4,4,4,4] }
-      state = args[:state]
 
       @dimensions = args[:dimensions] || []
+
+      state = args[:state]
 
       @cells = state ? absorb_layer(state, 0) : Set.new
 
@@ -41,11 +43,52 @@ module NDLife
       @min_nbrs_to_be_born = args[:min_born] || (2.50 * part).round
       @max_nbrs_to_survive = args[:max_surv] || (3.00 * part).round
       @min_nbrs_to_survive = args[:min_surv] || (1.50 * part).round
+
+      @neighbor_vectors = make_neighbor_vectors(@dimensions.length).delete_if { |vector|
+        vector.all? { |coord| coord == 0 }
+      }
+
+      @neighbor_cache = {}
     end
 
     # TODO MAYBE: make it barf if wrong # of dimensions, or out of bounds
-    def count_neighbors coords, options = {}
-      count_neighbors_layer coords, [], options
+    def count_neighbors center, options = {}
+      neighbor = []
+      total = 0
+      dead_list = options[:dead_list]
+      max = options[:max]
+
+      neighbors = @neighbor_cache[center]
+      if neighbors.nil?
+        neighbors = []
+        @neighbor_vectors.each do |vector|
+          # too slow (about three times as long!) to do:
+          # neighbor = center.zip(vector).map{|a|a.inject(:+)}.flatten.zip(@dimensions).map{|a|a.inject(:%)}.flatten
+          # not to mention a lot less clear!
+          neighbor = []
+          center.length.times do |idx|
+            neighbor[idx] = (center[idx] + vector[idx]) % @dimensions[idx]
+          end
+          neighbors << neighbor if neighbor != center  # possible if any dimension == 1
+        end
+        @neighbor_cache[center] = neighbors
+      end
+
+      # do this semi-procedurally so we can return early!
+      total = 0
+      neighbors.each{ |neighbor|
+        if @cells.include? neighbor
+          total += 1
+          # technically this could yield an incorrect count, AND skip some
+          # cells that should be added to the dead-list, but not in
+          # circumstances where we care; it should only be used to return early
+          # from checking if a dead cell can come alive, once we have too many.
+          return total if max && total >= max
+        elsif dead_list
+          dead_list << neighbor
+        end
+      }
+      total
     end
 
     def dump
@@ -53,20 +96,16 @@ module NDLife
     end
 
     # this could be rearranged to be "tighter" LOOKING, but
-    # it actually slows it down, from ~5ms to ~8ms per cell!
+    # it actually slows it down, from ~5us to ~8us per cell!
     def next_cell_state old_state, num_nbrs
       if old_state == ALIVE
-        if num_nbrs < min_nbrs_to_survive
-          DEAD
-        elsif num_nbrs > max_nbrs_to_survive
+        if num_nbrs < @min_nbrs_to_survive || num_nbrs > @max_nbrs_to_survive
           DEAD
         else
           ALIVE
         end
       else
-        if num_nbrs < min_nbrs_to_be_born
-          DEAD
-        elsif num_nbrs > max_nbrs_to_be_born
+        if num_nbrs < @min_nbrs_to_be_born || num_nbrs > @max_nbrs_to_be_born
           DEAD
         else
           ALIVE
@@ -74,20 +113,20 @@ module NDLife
       end
     end
 
-    def next_state
+    def turn
       new_cells = Set.new
-      dead_neighbors = Set.new
+      dead_nbrs = Set.new
       @cells.each do |coords|
         if next_cell_state(ALIVE,
                            count_neighbors(coords,
-                           :dead_neighbors => dead_neighbors)) == ALIVE
+                                           :dead_list => dead_nbrs)) == ALIVE
           new_cells << coords
         end
       end
-      dead_neighbors.each do |coords|
-        if next_cell_state(DEAD,
-                           count_neighbors(coords,
-                          :max_neighbor_count => @max_nbrs_to_be_born)) == ALIVE
+      # TODO: sanity check: live + dead should = # of possible neighbors
+      dead_nbrs.each do |coords|
+        if next_cell_state(DEAD, count_neighbors(coords,
+                                                 :max => (@max_nbrs_to_be_born + 1))) == ALIVE
           new_cells << coords
         end
       end
@@ -111,37 +150,8 @@ module NDLife
             end
           end
         end
-        @dimensions[layer_num] = 0 if ! @dimensions[layer_num]
-        @dimensions[layer_num] = [@dimensions[layer_num], arr.length].max
+        @dimensions[layer_num] = [@dimensions[layer_num].to_i, arr.length].max
         ret
-      end
-
-      # Bit of a kluge -- count the neighbors, AND if the dead_neighbors arg is
-      # not nil, add any we find (see next_state for why), grossly violating
-      # Single Responsibility, PLUS if we have a max number of neighbors to
-      # look for, return immediately upon finding them, not bothering to count
-      # any more.  Why such kluges?  Speed....
-      def count_neighbors_layer center, neighbor, options = {}
-        if neighbor.length == center.length
-          if @cells.include? neighbor
-            (neighbor != center) ? 1 : 0
-          else
-            dead_neighbors = options[:dead_neighbors]
-            dead_neighbors << neighbor if dead_neighbors
-            0
-          end
-        else
-          layer = neighbor.length
-          max_neighbor_count = options[:max_neighbor_count] 
-          (-1..1).reduce(0) do |sofar, delta|
-            next_coord = (center[layer] + delta) % @dimensions[layer]
-            sofar += count_neighbors_layer center,
-                                           (neighbor.clone << next_coord),
-                                           options
-            return sofar if (max_neighbor_count && sofar >= max_neighbor_count)
-            sofar
-          end
-        end
       end
 
       def dump_layer coords_so_far, dims_left
@@ -163,6 +173,18 @@ module NDLife
           ret = sub_rets.join("\n" + '-' * line_len + "\n")
         end
         ret
+      end
+
+      def make_neighbor_vectors num_dims
+        if num_dims == 0
+          [[]]
+        else
+          subs = make_neighbor_vectors(num_dims - 1)
+          (-1..1).map { |delta|
+            subs.map { |vector| vector.clone << delta }
+          }.flatten(1)
+        end
+
       end
 
     # end of private section

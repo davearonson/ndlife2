@@ -5,6 +5,40 @@ include NDLife
 
 describe 'NDLife' do
 
+  describe 'creates neighbor vectors correctly' do
+
+    it 'in 1d' do
+      World.new(dimensions: [1]).neighbor_vectors.sort.should == [[-1],[1]]
+    end
+
+    it 'in 2d' do
+      World.new(dimensions: [1,1]).neighbor_vectors.sort.should == [[-1,-1],[-1,0],[-1,1],
+                                                                    [ 0,-1],       [ 0,1],
+                                                                    [ 1,-1],[ 1,0],[ 1,1]]
+    end
+
+    it 'in 3d' do
+      World.new(dimensions: [1,1,1]).neighbor_vectors.sort.should == [[-1,-1,-1],[-1,-1,0],[-1,-1,1],[-1,0,-1],[-1,0,0],[-1,0,1],[-1,1,-1],[-1,1,0],[-1,1,1],
+                                                                      [ 0,-1,-1],[ 0,-1,0],[ 0,-1,1],[ 0,0,-1],         [ 0,0,1],[ 0,1,-1],[ 0,1,0],[ 0,1,1],
+                                                                      [ 1,-1,-1],[ 1,-1,0],[ 1,-1,1],[ 1,0,-1],[ 1,0,0],[ 1,0,1],[ 1,1,-1],[ 1,1,0],[ 1,1,1]]
+                                                                    
+    end
+
+    it 'in 4d' do
+      World.new(dimensions: [1,1,1,1]).neighbor_vectors.sort.should == [[-1,-1,-1,-1],[-1,-1,-1,0],[-1,-1,-1,1],[-1,-1,0,-1],[-1,-1,0,0],[-1,-1,0,1],[-1,-1,1,-1],[-1,-1,1,0],[-1,-1,1,1],
+                                                                        [-1, 0,-1,-1],[-1, 0,-1,0],[-1, 0,-1,1],[-1, 0,0,-1],[-1, 0,0,0],[-1, 0,0,1],[-1, 0,1,-1],[-1, 0,1,0],[-1, 0,1,1],
+                                                                        [-1, 1,-1,-1],[-1, 1,-1,0],[-1, 1,-1,1],[-1, 1,0,-1],[-1, 1,0,0],[-1, 1,0,1],[-1, 1,1,-1],[-1, 1,1,0],[-1, 1,1,1],
+                                                                        [ 0,-1,-1,-1],[ 0,-1,-1,0],[ 0,-1,-1,1],[ 0,-1,0,-1],[ 0,-1,0,0],[ 0,-1,0,1],[ 0,-1,1,-1],[ 0,-1,1,0],[ 0,-1,1,1],
+                                                                        [ 0, 0,-1,-1],[ 0, 0,-1,0],[ 0, 0,-1,1],[ 0, 0,0,-1],            [ 0, 0,0,1],[ 0, 0,1,-1],[ 0, 0,1,0],[ 0, 0,1,1],
+                                                                        [ 0, 1,-1,-1],[ 0, 1,-1,0],[ 0, 1,-1,1],[ 0, 1,0,-1],[ 0, 1,0,0],[ 0, 1,0,1],[ 0, 1,1,-1],[ 0, 1,1,0],[ 0, 1,1,1],
+                                                                        [ 1,-1,-1,-1],[ 1,-1,-1,0],[ 1,-1,-1,1],[ 1,-1,0,-1],[ 1,-1,0,0],[ 1,-1,0,1],[ 1,-1,1,-1],[ 1,-1,1,0],[ 1,-1,1,1],
+                                                                        [ 1, 0,-1,-1],[ 1, 0,-1,0],[ 1, 0,-1,1],[ 1, 0,0,-1],[ 1, 0,0,0],[ 1, 0,0,1],[ 1, 0,1,-1],[ 1, 0,1,0],[ 1, 0,1,1],
+                                                                        [ 1, 1,-1,-1],[ 1, 1,-1,0],[ 1, 1,-1,1],[ 1, 1,0,-1],[ 1, 1,0,0],[ 1, 1,0,1],[ 1, 1,1,-1],[ 1, 1,1,0],[ 1, 1,1,1]]
+                                                                    
+    end
+
+  end
+
   describe 'absorbs correctly' do
 
     it 'absorbs 1d empty right' do
@@ -346,7 +380,8 @@ describe 'NDLife' do
 
   end
 
-  describe "counts neighbors" do
+
+  describe "counts live neighbors" do
 
     it 'null' do
       # not applicable since we can't specify the coordinates!
@@ -366,12 +401,12 @@ describe 'NDLife' do
     end
 
     it 'solo dead on end of a string' do
+      # two 'cuz it DOESN'T know better than to count a neighbor
+      # cell twice, due to being in different directions.
       World.new(state: '* ').count_neighbors([1]).should == 2
     end
 
     it 'string of two alive' do
-      # two 'cuz it DOESN'T know better than to count a neighbor
-      # cell twice, due to being in different directions.
       # yes, i know i am now violating "one test per example", screw it....
       w = World.new(state: '**')
       w.count_neighbors([0]).should == 2
@@ -411,6 +446,129 @@ describe 'NDLife' do
       w.count_neighbors([2,0]).should == 4
       w.count_neighbors([2,1]).should == 4
       w.count_neighbors([2,2]).should == 5
+    end
+
+    it '3d' do
+      pending
+    end
+
+    it '4d' do
+      pending
+    end
+
+    it '5d' do
+      pending
+    end
+
+    it '6d' do
+      pending
+    end
+
+  end
+
+  describe "counts dead neighbors" do
+
+    it 'one dead' do
+      dead_list = []
+      World.new(state: ' ').count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 0
+    end
+
+    it 'one live' do
+      dead_list = []
+      World.new(state: '*').count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 0
+    end
+
+    it 'solo live on end of a string' do
+      dead_list = []
+      World.new(state: '* ').count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 2
+    end
+
+    it 'solo dead on end of a string' do
+      dead_list = []
+      World.new(state: '* ').count_neighbors([1], dead_list: dead_list)
+      dead_list.length.should == 0
+    end
+
+    it 'string of two alive' do
+      w = World.new(state: '**')
+      dead_list = []
+      w.count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 0
+      dead_list = []
+      w.count_neighbors([1], dead_list: dead_list)
+      dead_list.length.should == 0
+    end
+
+    it 'string of two dead' do
+      w = World.new(state: '  ')
+      dead_list = []
+      w.count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 2
+      dead_list = []
+      w.count_neighbors([1], dead_list: dead_list)
+      dead_list.length.should == 2
+    end
+
+    it 'string of three with dead ends' do
+      w = World.new(state: ' * ')
+      dead_list = []
+      w.count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 1
+      dead_list = []
+      w.count_neighbors([1], dead_list: dead_list)
+      dead_list.length.should == 2
+      dead_list = []
+      w.count_neighbors([2], dead_list: dead_list)
+      dead_list.length.should == 1
+    end
+
+    it 'string of three with live ends' do
+      w = World.new(state: '* *')
+      dead_list = []
+      w.count_neighbors([0], dead_list: dead_list)
+      dead_list.length.should == 1
+      dead_list = []
+      w.count_neighbors([1], dead_list: dead_list)
+      dead_list.length.should == 0
+      dead_list = []
+      w.count_neighbors([2], dead_list: dead_list)
+      dead_list.length.should == 1
+    end
+
+    it 'a grid' do
+      w = World.new(state: ['* *',
+                            ' * ',
+                            '** '])
+      dead_list = []
+      w.count_neighbors([0,0], dead_list: dead_list)
+      dead_list.length.should == 4
+      dead_list = []
+      w.count_neighbors([0,1], dead_list: dead_list)
+      dead_list.length.should == 3
+      dead_list = []
+      w.count_neighbors([0,2], dead_list: dead_list)
+      dead_list.length.should == 4
+      dead_list = []
+      w.count_neighbors([1,0], dead_list: dead_list)
+      dead_list.length.should == 3
+      dead_list = []
+      w.count_neighbors([1,1], dead_list: dead_list)
+      dead_list.length.should == 4
+      dead_list = []
+      w.count_neighbors([1,2], dead_list: dead_list)
+      dead_list.length.should == 3
+      dead_list = []
+      w.count_neighbors([2,0], dead_list: dead_list)
+      dead_list.length.should == 4
+      dead_list = []
+      w.count_neighbors([2,1], dead_list: dead_list)
+      dead_list.length.should == 4
+      dead_list = []
+      w.count_neighbors([2,2], dead_list: dead_list)
+      dead_list.length.should == 3
     end
 
     it '3d' do
